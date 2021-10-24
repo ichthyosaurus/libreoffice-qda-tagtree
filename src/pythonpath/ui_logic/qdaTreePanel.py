@@ -94,7 +94,6 @@ class Annotation():
 
 
 class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XTreeEditListener, XMouseListener, XEventListener):
-
     '''
     Class documentation...
     '''
@@ -105,7 +104,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self.TreeControl1.Editable = False  # True
         self.TreeControl1.InvokesStopNodeEditing = False
         self.TreeControl1.SelectionType = SELECTION_SINGLE
-        self.TreeControl1.RootDisplayed = False
+        self.TreeControl1.RootDisplayed = True
 
         self._objectsCache = {}
         self._contextMenu = None
@@ -151,7 +150,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         commentslist = self._collectTaggedComments()
         abstractTree = self._constructTree(commentslist)
         treemodel = self.ServiceManager.createInstance("com.sun.star.awt.tree.MutableTreeDataModel")
-        rootnode = treemodel.createNode("root",True)
+        rootnode = treemodel.createNode("QDA Tags", True)
         treemodel.setRoot(rootnode)
 
         def sortTreeRecursive(tree):
@@ -265,6 +264,10 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             branch.appendChild(exampleB)
             branch.appendChild(exampleC)
 
+        if not parent.DataValue:
+            self._objectsCache[id(abstractTree)] = abstractTree
+            parent.DataValue = id(abstractTree)
+
         for item in abstractTree.values():
             self._objectsCache[id(item)] = item
             branch = treemodel.createNode(item.name, True)
@@ -287,6 +290,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         GETS: XTreeNode
         RETURNS: Nothing, side effect
         '''
+        treeControl.expandNode(root)
 
         for count in range(0, root.ChildCount):
             child = root.getChildAt(count)
@@ -336,14 +340,22 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
     def _showContextMenu(self, node):
         self._contextMenuItems = {  # inefficient but easier to change
+                'rootNode': ['Export all tags', 'Create comprehensive report'],
                 'dataNode': ['Move', 'Delete'],
-                'tagNode': ['Edit', 'Export', 'Create report', 'Delete'],
+                'tagNode': ['Edit', 'Export this tag', 'Create report for this tag', 'Delete'],
             }
+        data = self._objectsCache[node.DataValue]
 
-        if isinstance(self._objectsCache[node.DataValue], Leaf):
+        if isinstance(data, Leaf):
             kind = 'dataNode'
+        elif isinstance(data, Tree):
+            if not data.path or data.path == '#':
+                kind = 'rootNode'
+            else:
+                kind = 'tagNode'
         else:
-            kind = 'tagNode'
+            print("warning: requested context menu on unknown node", node)
+            return
 
         self._createContextMenu(kind)
         if not self._contextMenu:
@@ -373,6 +385,8 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                                           'Confirm', WARNINGBOX, BUTTONS_OK_CANCEL)
                     if ret == 1:  # accepted
                         print("not yet implemented!")
+            elif kind == 'rootNode':
+                pass
             elif kind == 'tagNode':
                 if n == 1:
                     print("not yet implemented!")
@@ -431,6 +445,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     # -----------------------------------------------------------
 
     def showDialog(self):
+        # https://wiki.openoffice.org/wiki/Documentation/DevGuide/GUI/Displaying_Dialogs
         self.DialogContainer.setVisible(True)
         self.DialogContainer.createPeer(self.Toolkit, None)
         self.updateTree() # can now execute the update (and within expand the nodes) since the peer is set now, and this is needed for expanding nodes (whyever...)
