@@ -9,7 +9,7 @@
 
 import uno
 import re
-from functools import reduce
+from collections import defaultdict
 
 from com.sun.star.awt.MessageBoxButtons import BUTTONS_OK, BUTTONS_OK_CANCEL, BUTTONS_YES_NO, BUTTONS_YES_NO_CANCEL, BUTTONS_RETRY_CANCEL, BUTTONS_ABORT_IGNORE_RETRY
 from com.sun.star.awt.MessageBoxButtons import DEFAULT_BUTTON_OK, DEFAULT_BUTTON_CANCEL, DEFAULT_BUTTON_RETRY, DEFAULT_BUTTON_YES, DEFAULT_BUTTON_NO, DEFAULT_BUTTON_IGNORE
@@ -56,7 +56,45 @@ PACKAGE_ID = 'tagtree.qdaaddon.de.fordes.qdatreehelper'
 #        raise _rtex("\nBasic library Xray is not installed", uno.getComponentContext())
 
 
+class Tree(defaultdict):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.children = []
+        self.path = ''
+
+    @property
+    def name(self):
+        return '#'+self.path.split('#')[-1]
+
+
+def NestedTree():
+    return Tree(NestedTree)
+
+
+class Leaf():
+    def __init__(self, path, data):
+        self.path = path
+        self.data = data
+
+
+class Annotation():
+    def __init__(self, ident, name, paths, textField):
+        self.ident = ident
+        self.name = name
+        self.allPaths = paths
+        self.textField = textField
+
+    @property
+    def content(self):
+        return self.textField.Content
+
+    @property
+    def text(self):
+        return self.textField.getAnchor().getString()
+
+
 class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XTreeEditListener, XMouseListener, XEventListener):
+
     '''
     Class documentation...
     '''
@@ -69,6 +107,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self.TreeControl1.SelectionType = SELECTION_SINGLE
         self.TreeControl1.RootDisplayed = False
 
+        self._objectsCache = {}
         self._contextMenu = None
         self._contextMenuContainer = {}
         self._contextMenuItems = {}
@@ -102,6 +141,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         # reset aggregated data
         self._tagIdents = {}
         self._lastTagID = 0
+        self._objectsCache = {}
 
         # reset document pointers
         # This is required to support working on multiple documents at the same time.
@@ -114,16 +154,13 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         rootnode = treemodel.createNode("root",True)
         treemodel.setRoot(rootnode)
 
-        # sort children lists in the tree by name
-        def sortTreeRecursive(treeList):
-            for item in treeList:
-                if item['children']:
-                    sortTreeRecursive(item["children"])
-
-            # treat an item as tag if it has children
-            treeList.sort(key=lambda item: '#'+item['name'] if item['children'] else item['name'])
-
-        sortTreeRecursive(abstractTree)
+        def sortTreeRecursive(tree):
+            # don't sort children -- tree.children.sort(key=lambda x: x.data.name)
+            for key, value in sorted(tree.items(), key=lambda item: item[1].name):
+                tree[key] = tree.pop(key)  # hackish way to sort our custom dict in-place
+            for i in tree.items():
+                sortTreeRecursive(i[1])
+        sortTreeRecursive(abstractTree)  # TODO make sorting optional
 
         self._convertAbstractToUiTree(abstractTree, rootnode, treemodel)
         self.TreeControl1.DataModel = treemodel
@@ -177,66 +214,43 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             else:
                 currentField.Author += taggedAuthor
 
-            annotationInfo = {
-                'name': markedText,
-                'paths': splitTags,
-                'data': {
-                    'id': count,
-                    'origAnnotation': currentField,
-                    'markedText': markedText,
-                    'content': currentField.Content,
-                    }
-                }
+            matchedComments.append(Annotation(
+                ident=count,
+                name=markedText,
+                paths=splitTags,
+                textField=currentField,
+                ))
 
-            matchedComments.append(annotationInfo)
-
-            print("collected:", markedText)
+            print("collected:", count, markedText)
 
         return matchedComments
 
     def _constructTree(self, commentsList):
         '''
         DOES: Create a nested tree from a flat list
-        GETs: A list with items having name (string), paths (list of paths each being a list composed of path parts), data (a dict with what you like – it’s payload)
-        RETURNS: a tree like this
+        GETs: A list of Annotation objects
+        RETURNS: a tree like this:
 
-        - A
-          * Children:
-            - B
-              * Children:
-                - D
-                - E
-        - C
-        ...
-
-        So it is lists of dicts. One property is "children", in which there is another list of dicts etc.
+        - Tree A (tag):
+            * path: ''
+            * children: [Leaf(path, Annotation), Leaf(...)]
+            * items: {Tree...}
         '''
-
-        result = []
-        initialValue = {0: result}
-
-        def reducerfunction(accumulator, pathpart, comment):
-            if not pathpart in accumulator:
-                accumulator[pathpart] = {0: []}
-
-                elementToAppend = {
-                    "name": pathpart,
-                    "children": accumulator[pathpart][0],
-                }
-
-                if pathpart == comment["name"] and "data" in comment:
-                    elementToAppend["data"] = comment["data"]
-
-                accumulator[0].append(elementToAppend)
-
-            return accumulator[pathpart]
+        tree = NestedTree()
 
         for comment in commentsList:
-            for path in comment["paths"]:
-                reduce(lambda x, y: reducerfunction(x, y, comment),
-                       path+[comment["name"]], initialValue)
+            for path in comment.allPaths:
+                subtree = tree
+                pathShard = ''
 
-        return result
+                for part in path:
+                    subtree = subtree[part]
+                    pathShard += '#'+part
+                    subtree.path = pathShard
+
+                subtree.children.append(Leaf(path=path, data=comment))
+
+        return tree
 
     def _convertAbstractToUiTree(self, abstractTree, parent, treemodel):
         if not abstractTree:
@@ -251,23 +265,19 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             branch.appendChild(exampleB)
             branch.appendChild(exampleC)
 
-        for item in abstractTree:
-            if item == 'children':  # TODO check if this still happens
-                continue
+        for item in abstractTree.values():
+            self._objectsCache[id(item)] = item
+            branch = treemodel.createNode(item.name, True)
+            branch.DataValue = id(item)
 
-            if item['children']:  # it's a tag
-                branch = treemodel.createNode("#"+item['name'], True)
-            else:  # it's data
-                if len(item['name']) > 28:
-                    branch = treemodel.createNode(item['name'][:28]+'...', False)
-                else:
-                    branch = treemodel.createNode(item['name'], False)
+            for child in item.children:
+                self._objectsCache[id(child)] = child
+                leaf = treemodel.createNode(child.data.name[:28]+('...' if len(child.data.name) > 28 else ''), False)
+                leaf.DataValue = id(child)
+                branch.appendChild(leaf)
 
-            if item['children']:  # collect children recursively
-                self._convertAbstractToUiTree(item["children"], branch, treemodel)
-
-            if 'data' in item:
-                branch.DataValue = item["data"]["origAnnotation"]
+            if item:  # dict has nested items
+                self._convertAbstractToUiTree(item, branch, treemodel)
 
             parent.appendChild(branch)
 
@@ -330,7 +340,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                 'tagNode': ['Edit', 'Export', 'Create report', 'Delete'],
             }
 
-        if node.DataValue:
+        if isinstance(self._objectsCache[node.DataValue], Leaf):
             kind = 'dataNode'
         else:
             kind = 'tagNode'
@@ -376,7 +386,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                     #   - copy all contents over
                     #   - remove all annotations that don't reference this tag
                 elif n == 3:
-                    self._createTagReport(node.DataValue[''])
+                    self._createTagReport(node.DataValue)
                 elif n == 4:
                     ret = self.messageBox(f'Are you sure you want to delete the tag "{node.getDisplayValue()}" '+
                                            'and all information associated with it?', 'Confirm',
@@ -441,17 +451,13 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 #         self.messageBox("It's Alive! - updateButton", "Event: OnClick", INFOBOX)
 
     def selectionChanged(self, ev):
-        selection = ev.Source.getSelection().DataValue #get id of item
+        selection = self._objectsCache[ev.Source.getSelection().DataValue]
 
-        if selection is None:
-            return  # hashtag node
-
-        self.selection = selection
-        self.textOfTag.Text = selection.getAnchor().getString()
-        #mri(self.LocalContext, XSCRIPTCONTEXT.getDocument())
+        if not isinstance(selection, Leaf):
+            return  # not a data node
 
         if self.CheckboxJumpto.State == True:
-            self._scrollToRange(selection.getAnchor())
+            self._scrollToRange(selection.data.textField.getAnchor())
 
     # https://www.openoffice.org/api/docs/common/ref/com/sun/star/awt/tree/XTreeEditListener.html
     def nodeEditing(self, node):
