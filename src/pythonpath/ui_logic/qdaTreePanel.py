@@ -66,16 +66,6 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self._contextMenuContainer = {}
         self._contextMenuItems = {}
 
-        self._tagIdents = {}  # maps tags to unique IDs
-        self._lastTagID = 0
-
-        # document
-        self.ctx = uno.getComponentContext()
-        self.smgr = self.ctx.ServiceManager
-        self.desktop = self.smgr.createInstanceWithContext("com.sun.star.frame.Desktop", self.ctx)
-        self.document = self.desktop.getCurrentComponent()
-        self.updateTree() # this, seemingly, does not work
-
         # The dialog is created through models. To get the views/controllers we
         # need to call getControl(). To add to the irritation, there is the tree
         # model (model of the control element) and the tree data model (model of
@@ -93,6 +83,18 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     # xray(self.DialogContainer)
 
     def updateTree(self):
+        # reset aggregated data
+        self._tagIdents = {}
+        self._lastTagID = 0
+
+        # (re-)initialize document pointers
+        # This must be done here to support working on multiple documents at the
+        # same time.
+        self.ctx = uno.getComponentContext()
+        self.smgr = self.ctx.ServiceManager
+        self.desktop = self.smgr.createInstanceWithContext("com.sun.star.frame.Desktop", self.ctx)
+        self.document = self.desktop.getCurrentComponent()
+
         treeControl = self.DialogContainer.getControl('TreeControl1')
         commentslist = self._collectTaggedComments()
         abstractTree = self._constructTree(commentslist)
