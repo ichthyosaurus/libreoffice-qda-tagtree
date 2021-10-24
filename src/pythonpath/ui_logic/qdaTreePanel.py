@@ -30,6 +30,11 @@ from com.sun.star.view.SelectionType import SINGLE as SELECTION_SINGLE
 
 from ui.qdaTreePanel_UI import qdaTreePanel_UI
 
+
+# GLOBAL STATIC CONFIG
+PACKAGE_ID = 'tagtree.qdaaddon.de.fordes.qdatreehelper'
+
+
 # ----------------- helpers for API_inspector tools -----------------
 
 # uncomment for MRI
@@ -281,6 +286,36 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
             self._expandAllNodesGuiTree(child, treeControl)
 
+    # --------- reports ---------------------
+
+    def _createTagReport(self, tag):
+        packageInfo = self.ctx.getByName('/singletons/com.sun.star.deployment.PackageInformationProvider')
+        packageDir = packageInfo.getPackageLocation(PACKAGE_ID) if packageInfo else None
+
+        if not packageDir:
+            print("error: failed to get package directory")
+            self.messageBox('Internal error: failed to determine template directory.',
+                            'Internal Error', ERRORBOX)
+            return
+
+        # blank document: report = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
+        report = self.desktop.loadComponentFromURL(packageDir+'/templates/tag_report.ott', "_blank", 0, ())
+        table = report.getTextTables().getByName('TAG_TABLE')
+
+        if not table:
+            print("error: no table named TAG_TABLE found in template")
+            return
+
+        print(table.getRows().insertByIndex(1, 10))
+
+        text = report.Text
+        cursor = text.createTextCursor()
+        text.insertString(cursor, "blabla", 0)
+
+        # TODO: report
+        #   - load document template
+        #   - -> table with two columns: tag, value
+
     # --------- helpers ---------------------
 
     def messageBox(self, MsgText, MsgTitle, MsgType=MESSAGEBOX, MsgButtons=BUTTONS_OK):
@@ -310,9 +345,19 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         if n := self._contextMenu.execute(comp, Rectangle(), 0):
             print(f"- selected: {n} -> {self._contextMenuItems[kind][n-1]}")
 
+            # TODO: root export
+            #   - new document
+            #   - copy all contents
+            #   - remove all annotations
+            #   - highlight text with different colors, insert tag IDs
+            #   - -> "<[1] blabla> asd asd asd <[2] qweqwe <[1,3] oioi> asd>"
+
             if kind == 'dataNode':
                 if n == 1:
                     print("not yet implemented!")
+                    # TODO: move
+                    #   - change tag
+                    #   - replace tag in all annotations
                 elif n == 2:
                     ret = self.messageBox(f'Are you sure you want to delete the tagging of "{node.getDisplayValue()}"?',
                                           'Confirm', WARNINGBOX, BUTTONS_OK_CANCEL)
@@ -321,10 +366,17 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             elif kind == 'tagNode':
                 if n == 1:
                     print("not yet implemented!")
+                    # TODO: edit:
+                    #   - open dialog, edit name and description
+                    #   - -> description must be saved somewhere, optimally in an external codebook
                 elif n == 2:
                     print("not yet implemented!")
+                    # TODO: export
+                    #   - create new document
+                    #   - copy all contents over
+                    #   - remove all annotations that don't reference this tag
                 elif n == 3:
-                    print("not yet implemented!")
+                    self._createTagReport(node.DataValue[''])
                 elif n == 4:
                     ret = self.messageBox(f'Are you sure you want to delete the tag "{node.getDisplayValue()}" '+
                                            'and all information associated with it?', 'Confirm',
