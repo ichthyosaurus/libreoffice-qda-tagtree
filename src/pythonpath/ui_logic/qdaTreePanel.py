@@ -35,6 +35,20 @@ from ui.qdaTreePanel_UI import qdaTreePanel_UI
 PACKAGE_ID = 'tagtree.qdaaddon.de.fordes.qdatreehelper'
 
 
+def get_traceback():
+    """
+    Get a traceback for pyuno exceptions.
+    Source: https://forum.openoffice.org/en/forum/viewtopic.php?f=20&t=69813#p311800
+    """
+    (excType, excInstance, excTraceback) = sys.exc_info()
+    ret = (
+        str(excType) + ": " +
+        str(excInstance) + "\n" +
+        uno._uno_extract_printable_stacktrace(excTraceback)
+    )
+    return ret
+
+
 # ----------------- helpers for API_inspector tools -----------------
 
 # uncomment for MRI
