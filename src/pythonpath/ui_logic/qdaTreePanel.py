@@ -179,8 +179,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             markedText = currentField.getAnchor().getString()
             taggedAuthor = ' {'+("+".join([str(self._tagIdents[x]) for x in allTags]))+'}'
 
-            if authorRe.search(currentField.Author):
-                currentField.Author = authorRe.sub(taggedAuthor, currentField.Author)
+            if currentAuthor := authorRe.search(currentField.Author):
+                if currentAuthor.group(0) != taggedAuthor:
+                    currentField.Author = authorRe.sub(taggedAuthor, currentField.Author)
             else:
                 currentField.Author += taggedAuthor
 
