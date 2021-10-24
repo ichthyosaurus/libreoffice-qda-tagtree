@@ -8,24 +8,23 @@
 # =============================================================================
 
 import uno
+import re
+from functools import reduce
+
 from com.sun.star.awt.MessageBoxButtons import BUTTONS_OK, BUTTONS_OK_CANCEL, BUTTONS_YES_NO, BUTTONS_YES_NO_CANCEL, BUTTONS_RETRY_CANCEL, BUTTONS_ABORT_IGNORE_RETRY
 from com.sun.star.awt.MessageBoxButtons import DEFAULT_BUTTON_OK, DEFAULT_BUTTON_CANCEL, DEFAULT_BUTTON_RETRY, DEFAULT_BUTTON_YES, DEFAULT_BUTTON_NO, DEFAULT_BUTTON_IGNORE
 from com.sun.star.awt.MessageBoxType import MESSAGEBOX, INFOBOX, WARNINGBOX, ERRORBOX, QUERYBOX
 
 from com.sun.star.awt import XActionListener
 from com.sun.star.awt import XMouseListener
+from com.sun.star.awt import Rectangle
 from com.sun.star.awt.tree import XTreeEditListener
 from com.sun.star.awt.MouseButton import LEFT as MB_LEFT
 from com.sun.star.awt.MouseButton import RIGHT as MB_RIGHT
 
-
 from com.sun.star.view import XSelectionChangeListener
 from com.sun.star.view import XSelectionSupplier
-from com.sun.star.view.SelectionType import SINGLE
-
-from functools import reduce
-
-import re
+from com.sun.star.view.SelectionType import SINGLE as SELECTION_SINGLE
 
 from ui.qdaTreePanel_UI import qdaTreePanel_UI
 
@@ -50,93 +49,16 @@ from ui.qdaTreePanel_UI import qdaTreePanel_UI
 #        raise _rtex("\nBasic library Xray is not installed", uno.getComponentContext())
 
 
-####################
-
-import unohelper
-
-import threading
-
-from com.sun.star.awt import XMouseClickHandler
-from com.sun.star.awt import Rectangle
-#from com.sun.star.awt.MouseButton import LEFT as MB_LEFT
-
-#class MouseClickHandler(unohelper.Base, XMouseClickHandler, object):
-   #""" Handling mouse click on the document. """
-   #def __init__(self, ctx, doc):
-      #self.ctx = ctx
-      #self.doc = doc
-      #self.popup = None
-      #self._register()
-
-   #def _register(self):
-      #self.doc.getCurrentController().addMouseClickHandler(self)
-   #def unregister(self):
-      #""" Remove myself from broadcaster. """
-      #self.doc.getCurrentController().removeMouseClickHandler(self)
-
-   #def disposing(self, ev):
-      #global handler
-      #handler = None
-   #def mousePressed(self, ev):
-      #return False
-   #def mouseReleased(self, ev):
-      #if ev.Buttons == MB_LEFT:
-         #threading.Thread(target=self._show_popup).start()
-      #return False
-
-   #def _show_popup(self):
-      #if self.popup is None:
-         #self._create_popup_menu()
-      #if not self.popup:
-         #return
-
-      #comp = self.doc.getCurrentController().getFrame().getComponentWindow()
-      ## position of the popupmenu is not considered
-      #n = self.popup.execute(comp, Rectangle(), 0)
-      #if n > 0:
-         #print("selected: %s" % n)
-
-   #def _create_popup_menu(self):
-      #smgr = self.ctx.getServiceManager()
-      #popup = smgr.createInstanceWithContext(
-         #"com.sun.star.awt.PopupMenu", self.ctx)
-      #popup.insertItem(1, "item1", 0, 0)
-      #popup.insertItem(2, "item2", 0, 1)
-
-      #self.popup = popup
-
-## this is only for a document, just an example
-#handler = None
-
-#def set_mouse_handler(*args):
-   #""" starting to listen about mouse click on the document. """
-   #ctx = XSCRIPTCONTEXT.getComponentContext()
-   #doc = XSCRIPTCONTEXT.getDocument()
-   #global handler
-   #handler = MouseClickHandler(ctx, doc)
-
-#def remove_mouse_handler(*args):
-   #""" remove the handler from the document. """
-   #global handler
-   #if handler:
-      #handler.unregister()
-      #handler = None
-
-####################
-
-
 class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XTreeEditListener, XMouseListener):
-#class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XTreeEditListener, XMouseClickHandler):
     '''
     Class documentation...
     '''
-    
     def __init__(self, panelWin):
         qdaTreePanel_UI.__init__(self, panelWin)
 
         # custom initialization
         self.TreeControl1.Editable = False  # True
-        self.TreeControl1.InvokesStopNodeEditing = False  # True
+        self.TreeControl1.InvokesStopNodeEditing = False
 
         self._contextMenu = None
         self._contextMenuContainer = {}
@@ -152,11 +74,14 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self.document = self.desktop.getCurrentComponent()
         self.updateTree() # this, seemingly, does not work
 
+        # The dialog is created through models. To get the views/controllers we
+        # need to call getControl(). To add to the irritation, there is the tree
+        # model (model of the control element) and the tree data model (model of
+        # what the control element shows).
         treeControl = self.DialogContainer.getControl('TreeControl1')
         treeControl.addSelectionChangeListener(self)
         treeControl.addTreeEditListener(self)
         treeControl.addMouseListener(self)
-        #treeControl.addMouseClickHandler(self)
 
     def getHeight(self):
         return self.DialogContainer.Size.Height
@@ -201,20 +126,13 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         convertAbstractToUiTree(abstractTree, rootnode, treemodel)
 
-        # so seemingly, the dialog is created just via models. To get the views/controlers we need to call the getControl.
-        # To add to the irritation, there is the tree model (model of the control element) and the tree data model (model of what the control element shows)
-        #treeControl.addSelectionChangeListener(self)
-        #treeControl.addTreeEditListener(self)
-        #treeControl.addMouseClickHandler(self)
-
         self.TreeControl1.DataModel = treemodel
-        
+
         toolkit = self.ServiceManager.createInstance("com.sun.star.awt.Toolkit")
-                
+
         expandAllNodesGuiTree(treeControl.Model.DataModel.Root, treeControl)
 
-        # the variable single has been imported by "from com.sun.star.view.SelectionType import SINGLE". Just "SINGLE" (as string) or the corrseponding enumeration number did not work.
-        self.TreeControl1.SelectionType = SINGLE
+        self.TreeControl1.SelectionType = SELECTION_SINGLE
         self.TreeControl1.RootDisplayed = False
 
         expandAllNodesGuiTree(treeControl.Model.DataModel.Root, treeControl)
@@ -222,6 +140,17 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     def _collectHashtaggedComments(self):
         # DOES: Collect all comments ("Annotations") that match a regex in an array
         # RETURNs: List of comments ("Annotations")
+
+        # This method collects all comments and inserts a list of unique tag IDs
+        # into the author field. This way, the annotations get colored by tags.
+        # Annoyingly, this requires saving and reloading the document because
+        # the "post-its" don't get updated when the author changes.
+        #
+        # I tried replacing annotations with rewritten versions but that does not
+        # work. 1) It is impossible to retain the selection when calling
+        # document.Text.insertTextContent(anchor, newField, True). If the last
+        # parameter is "True", LO becomes highly unstable.
+        # 2) Comment threads would be lost when re-adding comments.
 
         document = self.document
 
@@ -425,117 +354,6 @@ def scrollToRange(document, range): #range is a section in a text
     # viewCursor.collapseToEnd()
 
 
-def collectHashtaggedCommentsNOT_WORKING(document):
-    # DOES: Collect all comments ("Annotations") that match a regex in an array
-    # GETS: A document
-    # RETURNs: List of comments ("Annotations")
-
-    # This regex needs to match for a comment to be included in the returned list.
-    findTagsRe = re.compile('#\S+')
-
-    textFields = document.getTextFields()
-    matchedComments = []
-
-    for count, currentField in enumerate(textFields):
-        if not currentField.supportsService("com.sun.star.text.TextField.Annotation"):
-            continue  # field is not a comment
-
-        if not findTagsRe.search(currentField.Content.strip()):
-            continue  # field contains no tags
-
-        allTags = findTagsRe.findall(currentField.Content.strip())  # e.g. ['#tag1#nested1#nested2', '#tag2']
-        splitTags = [x[1:].split("#") for x in allTags]  # e.g. [ ['tag1', 'nested1', 'nested2'], ['tag2'], ]
-        markedText = currentField.getAnchor().getString()
-
-        newField = document.createInstance("com.sun.star.text.TextField.Annotation")
-        newField.Author = 'wuff'#f'tag: {", ".join(allTags)} [{currentField.Author}]'
-        newField.Content = findTagsRe.sub('', currentField.Content.strip()).strip()
-        newField.Date = currentField.Date
-        newField.DateTimeValue = currentField.DateTimeValue
-
-        if not newField.Content:
-            newField.Content = '*'
-
-        annotationInfo = {
-            'name': markedText,
-            'paths': splitTags,
-            'data': {
-                'id': count,
-                'origAnnotation': newField,
-                'markedText': markedText,
-                'content': newField.Content,
-                }
-            }
-
-        matchedComments.append((newField, currentField.getAnchor(), currentField, annotationInfo))
-
-        print("collected:", markedText)
-
-    convertedComments = []
-    for newField, anchor, oldField, info in matchedComments:
-        print("converting:", info['name'])
-        document.Text.insertTextContent(anchor, newField, True)
-        oldField.Author = 'wuff'
-        oldField.update()
-        # document.Text.removeTextContent(oldField)
-        convertedComments.append(info)
-        print("converted:", info['name'])
-
-    return convertedComments
-
-
-def collectHashtaggedCommentsOLD(document):
-
-    # DOES: Collect all comments ("Annotations") that match a regex in an array
-    # GETs: A document
-    # RETURNs: List of comments ("Annotations")
-
-    findHashtagsRegex = re.compile('#\S+') #This regex needs to match for a comment to be included in the returned list. It is: a "#", followed by any non-whitespace, followed by word boundary
-
-    textfields = list(document.getTextFields())
-    matchedComments = []  # will hold array with comments and their metadata
-
-    for counter, currentField in enumerate(textfields):
-            if currentField.supportsService("com.sun.star.text.TextField.Annotation"): #is this an annotation aka comment?
-
-                #to list/array
-                #write to var
-                if findHashtagsRegex.search(currentField.Content): # only do, if a hashtag is in the comment
-                    tagListStrings = findHashtagsRegex.findall(currentField.Content) #the tags in the comment field
-                    markedText = currentField.getAnchor().getString() # the text to which the comment refers
-
-                    # list of lists of split strings; leading '#' must be stripped
-                    # to avoid an empty entry at the beginning
-                    tagList = [x[1:].split("#") for x in tagListStrings]
-
-                    print(tagList)
-                    print(document)
-
-                    newField = document.createInstance("com.sun.star.text.TextField.Annotation")
-                    newField.Author = f'tag: #{"#".join(tagList[0])} [{currentField.Author}]'
-                    newField.Content = currentField.Content
-                    newField.Date = currentField.Date
-                    newField.DateTimeValue = currentField.DateTimeValue
-
-                    document.Text.insertTextContent(currentField.getAnchor(), newField, True)
-
-                    annotationInfo =    {
-                                        'name':markedText,
-                                        'paths':tagList,
-                                        'data':{
-                                            'id':counter,
-                                            'origAnnotation':currentField,
-                                            'markedText':markedText,
-                                            'content':currentField.Content,
-                                            }
-                                        } # create hashtable with infos to use late
-
-                    # jumpt to da point
-                    matchedComments.append(annotationInfo)
-
-    return matchedComments
-
-
 def constructTree(commentsArray):
     '''
     DOES: Create a nested tree from a flat list 
@@ -587,7 +405,6 @@ def constructTree(commentsArray):
     return result
 
 
-
 def sortTreeRecursive(treeList):
     ''' 
     DOES: Sort children lists in a tree by name
@@ -598,7 +415,8 @@ def sortTreeRecursive(treeList):
         if "children" in item:
             sortTreeRecursive(item["children"])
     treeList.sort(key=lambda item:item["name"])
-    
+
+
 def expandAllNodesGuiTree(root,treeControl):
     '''
     DOES: Expand all Nodes in a mutableTreeModel
