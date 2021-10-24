@@ -15,6 +15,8 @@ from com.sun.star.awt.MessageBoxButtons import BUTTONS_OK, BUTTONS_OK_CANCEL, BU
 from com.sun.star.awt.MessageBoxButtons import DEFAULT_BUTTON_OK, DEFAULT_BUTTON_CANCEL, DEFAULT_BUTTON_RETRY, DEFAULT_BUTTON_YES, DEFAULT_BUTTON_NO, DEFAULT_BUTTON_IGNORE
 from com.sun.star.awt.MessageBoxType import MESSAGEBOX, INFOBOX, WARNINGBOX, ERRORBOX, QUERYBOX
 
+from com.sun.star.document import XEventListener
+
 from com.sun.star.awt import XActionListener
 from com.sun.star.awt import XMouseListener
 from com.sun.star.awt import Rectangle
@@ -66,6 +68,15 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self._contextMenuContainer = {}
         self._contextMenuItems = {}
 
+        # document pointers
+        self.ctx = uno.getComponentContext()
+        self.smgr = self.ctx.ServiceManager
+        self.desktop = self.smgr.createInstanceWithContext("com.sun.star.frame.Desktop", self.ctx)
+        self.document = self.desktop.getCurrentComponent()
+
+        self.globalEvents = self.smgr.createInstanceWithContext("com.sun.star.frame.GlobalEventBroadcaster", self.ctx)
+        self.globalEvents.addEventListener(self)
+
         # The dialog is created through models. To get the views/controllers we
         # need to call getControl(). To add to the irritation, there is the tree
         # model (model of the control element) and the tree data model (model of
@@ -87,12 +98,8 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self._tagIdents = {}
         self._lastTagID = 0
 
-        # (re-)initialize document pointers
-        # This must be done here to support working on multiple documents at the
-        # same time.
-        self.ctx = uno.getComponentContext()
-        self.smgr = self.ctx.ServiceManager
-        self.desktop = self.smgr.createInstanceWithContext("com.sun.star.frame.Desktop", self.ctx)
+        # reset document pointers
+        # This is required to support working on multiple documents at the same time.
         self.document = self.desktop.getCurrentComponent()
 
         treeControl = self.DialogContainer.getControl('TreeControl1')
@@ -431,6 +438,14 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                 print(f"no node at {ev.X}x{ev.Y}")
 
         return False
+
+    # https://www.openoffice.org/api/docs/common/ref/com/sun/star/document/XDocumentEventListener.html
+    # https://www.openoffice.org/api/docs/common/ref/com/sun/star/document/DocumentEvent.html
+    def notifyEvent(self, ev):
+        pass
+        # if ev.EventName == 'OnFocus':
+            # self.updateTree()
+        # print("DOCUMENT EVENT:", ev.EventName)
 
 
 #----------------#
