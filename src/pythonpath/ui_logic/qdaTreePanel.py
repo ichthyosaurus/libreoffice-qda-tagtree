@@ -59,6 +59,8 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         # custom initialization
         self.TreeControl1.Editable = False  # True
         self.TreeControl1.InvokesStopNodeEditing = False
+        self.TreeControl1.SelectionType = SELECTION_SINGLE
+        self.TreeControl1.RootDisplayed = False
 
         self._contextMenu = None
         self._contextMenuContainer = {}
@@ -90,54 +92,30 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     # mri(self.LocalContext, self.DialogContainer)
     # xray(self.DialogContainer)
 
-    def updateTree(self): #why is self implicitly passed?
-        def convertAbstractToUiTree(abstractTree,parent,gui_treemodel):
-            
-            if not abstractTree: #if abstract tree is empty, show some into to the user
-                branch = treemodel.createNode("if you create comments write a #hashtag, they will be listed here", False)
-                parent.appendChild(branch)
-                
-            for item in abstractTree: #TODO: Item is sometimes the string "children"
-                
-                if "children" in item and item["children"]:
-                    branch = treemodel.createNode("#"+item['name'], True) #[:n] takes the first n chars of a string (or just leaves it be, if there are less). Alternatives: if-clause or function for it; gain: add "…" to string if shortened 
-                else:
-                    if len(item['name']) > 20:
-                        branch = treemodel.createNode(item['name'][:20]+'...', False)
-                    else:
-                        branch = treemodel.createNode(item['name'], False)
-               
-                if "children" in item and item["children"]: #"in" checks for keys existance, "item["children"]"" checks if list is emptry since an empty list is false (https://www.python.org/dev/peps/pep-0008/#programming-recommendations)
-                    convertAbstractToUiTree(item["children"],branch, gui_treemodel)
-                    
-                if "data" in item:
-                    branch.DataValue = item["data"]["origAnnotation"]
-                parent.appendChild(branch)
-
+    def updateTree(self):
         treeControl = self.DialogContainer.getControl('TreeControl1')
-        commentslist = self._collectHashtaggedComments()
-        abstractTree = constructTree(commentslist)
-        sortTreeRecursive(abstractTree) #inplace sort
-
+        commentslist = self._collectTaggedComments()
+        abstractTree = self._constructTree(commentslist)
         treemodel = self.ServiceManager.createInstance("com.sun.star.awt.tree.MutableTreeDataModel")
-
         rootnode = treemodel.createNode("root",True)
         treemodel.setRoot(rootnode)
 
-        convertAbstractToUiTree(abstractTree, rootnode, treemodel)
+        # sort children lists in the tree by name
+        def sortTreeRecursive(treeList):
+            for item in treeList:
+                if item['children']:
+                    sortTreeRecursive(item["children"])
 
+            # treat an item as tag if it has children
+            treeList.sort(key=lambda item: '#'+item['name'] if item['children'] else item['name'])
+
+        sortTreeRecursive(abstractTree)
+
+        self._convertAbstractToUiTree(abstractTree, rootnode, treemodel)
         self.TreeControl1.DataModel = treemodel
+        self._expandAllNodesGuiTree(treeControl.Model.DataModel.Root, treeControl)
 
-        toolkit = self.ServiceManager.createInstance("com.sun.star.awt.Toolkit")
-
-        expandAllNodesGuiTree(treeControl.Model.DataModel.Root, treeControl)
-
-        self.TreeControl1.SelectionType = SELECTION_SINGLE
-        self.TreeControl1.RootDisplayed = False
-
-        expandAllNodesGuiTree(treeControl.Model.DataModel.Root, treeControl)
-
-    def _collectHashtaggedComments(self):
+    def _collectTaggedComments(self):
         # DOES: Collect all comments ("Annotations") that match a regex in an array
         # RETURNs: List of comments ("Annotations")
 
@@ -202,6 +180,98 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         return matchedComments
 
+    def _constructTree(self, commentsList):
+        '''
+        DOES: Create a nested tree from a flat list
+        GETs: A list with items having name (string), paths (list of paths each being a list composed of path parts), data (a dict with what you like – it’s payload)
+        RETURNS: a tree like this
+
+        - A
+          * Children:
+            - B
+              * Children:
+                - D
+                - E
+        - C
+        ...
+
+        So it is lists of dicts. One property is "children", in which there is another list of dicts etc.
+        '''
+
+        result = []
+        initialValue = {0: result}
+
+        def reducerfunction(accumulator, pathpart, comment):
+            if not pathpart in accumulator:
+                accumulator[pathpart] = {0: []}
+
+                elementToAppend = {
+                    "name": pathpart,
+                    "children": accumulator[pathpart][0],
+                }
+
+                if pathpart == comment["name"] and "data" in comment:
+                    elementToAppend["data"] = comment["data"]
+
+                accumulator[0].append(elementToAppend)
+
+            return accumulator[pathpart]
+
+        for comment in commentsList:
+            for path in comment["paths"]:
+                reduce(lambda x, y: reducerfunction(x, y, comment),
+                       path+[comment["name"]], initialValue)
+
+        return result
+
+    def _convertAbstractToUiTree(self, abstractTree, parent, treemodel):
+        if not abstractTree:
+            # show documentation if there are no nodes
+            branch = treemodel.createNode("Tagged comments will be listed here.", False)
+            exampleA = treemodel.createNode("Tags may be simple: #tag", False)
+            exampleB = treemodel.createNode("Or nested: #tag#subtag#subsubtag", False)
+            exampleC = treemodel.createNode("Comments may contain multiple tags.", False)
+
+            parent.appendChild(branch)
+            branch.appendChild(exampleA)
+            branch.appendChild(exampleB)
+            branch.appendChild(exampleC)
+
+        for item in abstractTree:
+            if item == 'children':  # TODO check if this still happens
+                continue
+
+            if item['children']:  # it's a tag
+                branch = treemodel.createNode("#"+item['name'], True)
+            else:  # it's data
+                if len(item['name']) > 28:
+                    branch = treemodel.createNode(item['name'][:28]+'...', False)
+                else:
+                    branch = treemodel.createNode(item['name'], False)
+
+            if item['children']:  # collect children recursively
+                self._convertAbstractToUiTree(item["children"], branch, treemodel)
+
+            if 'data' in item:
+                branch.DataValue = item["data"]["origAnnotation"]
+
+            parent.appendChild(branch)
+
+    def _expandAllNodesGuiTree(self, root, treeControl):
+        '''
+        DOES: Expand all Nodes in a mutableTreeModel
+        GETS: XTreeNode
+        RETURNS: Nothing, side effect
+        '''
+
+        for count in range(0, root.ChildCount):
+            child = root.getChildAt(count)
+
+            if child.ChildCount > 0 and treeControl.Peer:
+                treeControl.expandNode(child)
+
+            self._expandAllNodesGuiTree(child, treeControl)
+
     # --------- helpers ---------------------
 
     def messageBox(self, MsgText, MsgTitle, MsgType=MESSAGEBOX, MsgButtons=BUTTONS_OK):
@@ -213,7 +283,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     def _showContextMenu(self, node):
         self._contextMenuItems = {  # inefficient but easier to change
                 'dataNode': ['Move', 'Delete'],
-                'tagNode': ['Edit', 'Delete'],
+                'tagNode': ['Edit', 'Export', 'Create report', 'Delete'],
             }
 
         if node.DataValue:
@@ -226,25 +296,32 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             return
 
         comp = self.document.getCurrentController().getFrame().getComponentWindow()
+
         # position of the popupmenu is not considered
         if n := self._contextMenu.execute(comp, Rectangle(), 0):
             print(f"- selected: {n} -> {self._contextMenuItems[kind][n-1]}")
 
             if kind == 'dataNode':
                 if n == 1:
-                    pass
+                    print("not yet implemented!")
                 elif n == 2:
-                    ret = self.messageBox(f'Are you sure you want to delete the tagging of "{node.getDisplayValue()}"?', 'Confirm', WARNINGBOX, BUTTONS_OK_CANCEL)
-
+                    ret = self.messageBox(f'Are you sure you want to delete the tagging of "{node.getDisplayValue()}"?',
+                                          'Confirm', WARNINGBOX, BUTTONS_OK_CANCEL)
                     if ret == 1:  # accepted
-                        pass
+                        print("not yet implemented!")
             elif kind == 'tagNode':
                 if n == 1:
-                    pass
+                    print("not yet implemented!")
                 elif n == 2:
+                    print("not yet implemented!")
+                elif n == 3:
+                    print("not yet implemented!")
+                elif n == 4:
                     ret = self.messageBox(f'Are you sure you want to delete the tag "{node.getDisplayValue()}" '+
                                            'and all information associated with it?', 'Confirm',
                                            WARNINGBOX, BUTTONS_OK_CANCEL)
+                    if ret == 1:  # accepted
+                        print("not yet implemented!")
 
     def _createContextMenu(self, kind):
         if kind in self._contextMenuContainer:
@@ -264,6 +341,19 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         self._contextMenuContainer[kind] = popup
         self._contextMenu = popup
+
+    def _scrollToRange(self, textRange):
+        '''
+        DOES: scrolls the document to the range in a given text
+        GETS: a document and a range object. The range must be in the document
+        RETURNS: nothing, side effect
+        '''
+        viewCursor = self.document.CurrentController.getViewCursor()
+        viewCursor.gotoRange(textRange, False)
+
+        # It is not necessary to collapse (clear) the selection. Accidental
+        # keystrokes only reach the currently focussed item, i.e. the side panel.
+        ### viewCursor.collapseToEnd()
 
     # -----------------------------------------------------------
     #               Execute dialog
@@ -300,7 +390,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         #mri(self.LocalContext, XSCRIPTCONTEXT.getDocument())
 
         if self.CheckboxJumpto.State == True:
-            scrollToRange(self.document, selection.getAnchor())
+            self._scrollToRange(selection.getAnchor())
 
     # https://www.openoffice.org/api/docs/common/ref/com/sun/star/awt/tree/XTreeEditListener.html
     def nodeEditing(self, node):
@@ -339,103 +429,6 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                 print(f"no node at {ev.X}x{ev.Y}")
 
         return False
-
-#--------------------------------------------
-
-def scrollToRange(document, range): #range is a section in a text
-    #DOES: scrolls the document to the range in a given text
-    #ARGUMENTS: a document and a range object. The range must be in the document
-    #RETURNS: nothing (is a side effect function, see DOES)
-
-    viewCursor = document.CurrentController.getViewCursor()
-    viewCursor.gotoRange(range, False)
-
-    # It is not necessary to collapse (clear) the selection, as accidental
-    # keystrokes only reach the currently focussed item.
-    # viewCursor.collapseToEnd()
-
-
-def constructTree(commentsArray):
-    '''
-    DOES: Create a nested tree from a flat list 
-    GETs: A list with items having name (string), paths (list of paths each being a list composed of path parts), data (a dict with what you like – it’s payload)
-    RETURNS: a tree like this
-    
-    - A
-     * Children:
-      - B
-       * children:
-        - D
-        - E
-      - C
-    …
-    So it is lists of dicts. One property is "children", in which there is another list of dicts etc.
-    '''
-    
-    #TODO: Fix "array" name to "list"  
-    
-    result = []
-
-    initialValue = {
-        0:result
-    }
-
-    for comment in commentsArray:
-        for path in comment["paths"]:
-            #pydevd.settrace()
-            def reducerfunction(accumulator,pathpart): #function defined here so I can access the current comment in the reducer function
-                #print("cmmt", comment, "-- -- - -path",path, "- - - pathpart", pathpart)
-                if not pathpart in accumulator:
-                    accumulator[pathpart] = {
-                        0:[]
-                    }
-
-                    elementToAppend = {
-                        "name":pathpart,
-                        "children":accumulator[pathpart][0]
-                    }
-
-                    if pathpart == comment["name"] and "data" in comment:
-                        elementToAppend["data"] = comment["data"]
-
-                    accumulator[0].append(elementToAppend)
-                return accumulator[pathpart]
-
-            reduce(reducerfunction,path+[comment["name"]],initialValue)
-
-    return result
-
-
-def sortTreeRecursive(treeList):
-    ''' 
-    DOES: Sort children lists in a tree by name
-    GET: Tree
-    RETURN: Nothing, side effect
-    '''
-    for item in treeList:
-        if "children" in item:
-            sortTreeRecursive(item["children"])
-    treeList.sort(key=lambda item:item["name"])
-
-
-def expandAllNodesGuiTree(root,treeControl):
-    '''
-    DOES: Expand all Nodes in a mutableTreeModel
-    GETS: XTreeNode
-    RETURNS: Nothing, side effect
-    '''
-
-    # TODO: check if tree control has a peer, if not return None
-    for count in range(0,root.ChildCount):
-        child = root.getChildAt(count)
-        
-        if child.ChildCount > 0 and treeControl.Peer:
-            treeControl.expandNode(child)
-            expandAllNodesGuiTree(child, treeControl)
-
-        
-    
-    
 
 
 #----------------#
