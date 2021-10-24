@@ -56,7 +56,7 @@ PACKAGE_ID = 'tagtree.qdaaddon.de.fordes.qdatreehelper'
 #        raise _rtex("\nBasic library Xray is not installed", uno.getComponentContext())
 
 
-class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XTreeEditListener, XMouseListener):
+class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XTreeEditListener, XMouseListener, XEventListener):
     '''
     Class documentation...
     '''
