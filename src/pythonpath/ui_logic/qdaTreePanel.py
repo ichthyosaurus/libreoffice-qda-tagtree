@@ -9,6 +9,7 @@
 
 import uno
 import re
+import sys
 from collections import defaultdict
 
 from com.sun.star.awt.MessageBoxButtons import BUTTONS_OK, BUTTONS_OK_CANCEL, BUTTONS_YES_NO, BUTTONS_YES_NO_CANCEL, BUTTONS_RETRY_CANCEL, BUTTONS_ABORT_IGNORE_RETRY
@@ -16,6 +17,8 @@ from com.sun.star.awt.MessageBoxButtons import DEFAULT_BUTTON_OK, DEFAULT_BUTTON
 from com.sun.star.awt.MessageBoxType import MESSAGEBOX, INFOBOX, WARNINGBOX, ERRORBOX, QUERYBOX
 
 from com.sun.star.document import XEventListener
+from com.sun.star.beans import PropertyValue
+from com.sun.star.beans.PropertyState import DIRECT_VALUE
 
 from com.sun.star.awt import XActionListener
 from com.sun.star.awt import XMouseListener
@@ -90,6 +93,9 @@ class Leaf():
         self.path = path
         self.data = data
 
+    @property
+    def pathString(self):
+        return '#'+('#'.join(self.path))
 
 class Annotation():
     def __init__(self, ident, name, paths, textField):
@@ -316,7 +322,30 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
     # --------- reports ---------------------
 
+    def _buildTagDataList(self, abstractTree, tempList=None):
+        if tempList is None:
+            tempList = []
+
+        if hasattr(abstractTree, 'children'):
+            for child in abstractTree.children:
+                tempList.append(child)
+
+        if not abstractTree:
+            return tempList
+
+        for item in abstractTree.values():
+            tempList = self._buildTagDataList(item, tempList)
+
+        return tempList
+
+    def _writeToTableCell(self, table, column, row, content):
+        cell = table.getCellByPosition(column, row)
+        cursor = cell.createTextCursor()
+        cell.insertString(cursor, content, False)
+
     def _createTagReport(self, tag):
+        print("building report for tag:", tag.name, '|', tag.path)
+
         packageInfo = self.ctx.getByName('/singletons/com.sun.star.deployment.PackageInformationProvider')
         packageDir = packageInfo.getPackageLocation(PACKAGE_ID) if packageInfo else None
 
@@ -326,23 +355,106 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                             'Internal Error', ERRORBOX)
             return
 
-        # blank document: report = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
-        report = self.desktop.loadComponentFromURL(packageDir+'/templates/tag_report.ott', "_blank", 0, ())
-        table = report.getTextTables().getByName('TAG_TABLE')
+        try:
+            # blank document: report = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
+            loadProperties = [PropertyValue("AsTemplate", 0, True, DIRECT_VALUE)]
+            report = self.desktop.loadComponentFromURL(packageDir+'/templates/tag_report.odt', "_blank", 0, tuple(loadProperties))
+            table = report.getTextTables().getByName('TAG_TABLE')
+        except:
+            print("error: failed to load template:", get_traceback())
+            return
 
         if not table:
             print("error: no table named TAG_TABLE found in template")
             return
 
-        print(table.getRows().insertByIndex(1, 10))
+        dataNodes = self._buildTagDataList(tag)
+        table.getRows().insertByIndex(1, len(dataNodes)-1)  # -1 because there is one already
 
-        text = report.Text
-        cursor = text.createTextCursor()
-        text.insertString(cursor, "blabla", 0)
+        for i, node in enumerate(dataNodes):
+            try:
+                self._writeToTableCell(table, 0, i+1, node.data.ident)
+                self._writeToTableCell(table, 1, i+1, node.pathString)
+                self._writeToTableCell(table, 2, i+1, node.data.text)
+            except:
+                print("failed to populate cell:", get_traceback())
 
-        # TODO: report
-        #   - load document template
-        #   - -> table with two columns: tag, value
+        if tag.path == '' or tag.path == '#':
+            documentTitle = 'QDA Tags'
+        else:
+            documentTitle = 'Tag: '+tag.path
+
+        try:
+            field = report.getTextFieldMasters().getByName('com.sun.star.text.fieldmaster.User.MAINTAG')
+            field.setPropertyValue('Content', documentTitle)
+        except:
+            print("error: failed to write title:", get_traceback())
+
+        return report
+
+    def _createTagFiltered(self, tag):
+        try:
+            # TODO: Tables and other non-text objects at the very beginning of the
+            # document will not be copied. Also, getting the view cursor fails in
+            # these situations, thus the selection cannot be cleared.
+            self.document.lockControllers()
+
+            try:
+                origPosition = self.document.getText().createTextCursorByRange(
+                    self.document.CurrentController.getViewCursor())
+            except:
+                origPosition = None
+
+            selectionCursor = self.document.getText().createTextCursor()
+            selectionCursor.gotoStart(False)
+            selectionCursor.gotoEnd(True)
+            self.document.CurrentController.select(selectionCursor)
+            selectedContent = self.document.CurrentController.getTransferable()
+
+            if origPosition:
+                self.document.CurrentController.select(origPosition)
+            self.document.unlockControllers()
+
+            report = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
+            outputCursor = report.getText().createTextCursor()
+            outputCursor.gotoStart(False)
+            report.CurrentController.select(outputCursor)
+            report.CurrentController.insertTransferable(selectedContent)
+            report.CurrentController.getViewCursor().gotoStart(False)
+        except:
+            print("error: failed to export tag:", get_traceback())
+            self.document.unlockControllers()
+            return
+
+        findTagsRe = re.compile(r'#\S+')
+        matchTagRe = re.compile(r'')
+
+        for field in report.getTextFields():
+            if not field.supportsService("com.sun.star.text.TextField.Annotation"):
+                continue  # field is not a comment
+
+            tagPath = tag.path
+            offset = len(tag.path)
+
+            allTags = sorted([str(x).lower() for x in findTagsRe.findall(field.Content.strip())])  # e.g. ['#tag1#nested1#nested2', '#tag2']
+            matchedTags = [x for x in allTags if x.startswith(tagPath) and (x[offset:] == '' or x[offset:][0] == '#')]
+
+            if not matchedTags:
+                report.getText().removeTextContent(field)
+
+        return report
+
+    def _createTagExport(self, tag):
+        report = self._createTagFiltered(tag)
+
+        # TODO: root export
+        #   - new document
+        #   - copy all contents
+        #   - remove all annotations
+        #   - highlight text with different colors, insert tag IDs
+        #   - -> "<[1] lorem> ipsum dolor <[2] sit <[1,3] amet>, consectetuer> adipiscing elit."
+
+        print("not yet finished...")
 
     # --------- helpers ---------------------
 
@@ -356,7 +468,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self._contextMenuItems = {  # inefficient but easier to change
                 'rootNode': ['Export all tags', 'Create comprehensive report'],
                 'dataNode': ['Move', 'Delete'],
-                'tagNode': ['Edit', 'Export this tag', 'Create report for this tag', 'Delete'],
+                'tagNode': ['Edit', 'Filter this tag', 'Export this tag', 'Create report', 'Delete'],
             }
         data = self._objectsCache[node.DataValue]
 
@@ -381,13 +493,6 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         if n := self._contextMenu.execute(comp, Rectangle(), 0):
             print(f"- selected: {n} -> {self._contextMenuItems[kind][n-1]}")
 
-            # TODO: root export
-            #   - new document
-            #   - copy all contents
-            #   - remove all annotations
-            #   - highlight text with different colors, insert tag IDs
-            #   - -> "<[1] blabla> asd asd asd <[2] qweqwe <[1,3] oioi> asd>"
-
             if kind == 'dataNode':
                 if n == 1:
                     print("not yet implemented!")
@@ -400,7 +505,10 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                     if ret == 1:  # accepted
                         print("not yet implemented!")
             elif kind == 'rootNode':
-                pass
+                if n == 1:
+                    self._createTagExport(data)
+                elif n == 2:
+                    self._createTagReport(data)
             elif kind == 'tagNode':
                 if n == 1:
                     print("not yet implemented!")
@@ -408,14 +516,12 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                     #   - open dialog, edit name and description
                     #   - -> description must be saved somewhere, optimally in an external codebook
                 elif n == 2:
-                    print("not yet implemented!")
-                    # TODO: export
-                    #   - create new document
-                    #   - copy all contents over
-                    #   - remove all annotations that don't reference this tag
+                    self._createTagFiltered(data)
                 elif n == 3:
-                    self._createTagReport(node.DataValue)
+                    self._createTagExport(data)
                 elif n == 4:
+                    self._createTagReport(data)
+                elif n == 5:
                     ret = self.messageBox(f'Are you sure you want to delete the tag "{node.getDisplayValue()}" '+
                                            'and all information associated with it?', 'Confirm',
                                            WARNINGBOX, BUTTONS_OK_CANCEL)
