@@ -350,7 +350,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     def _writeToTableCell(self, table, column, row, content):
         cell = table.getCellByPosition(column, row)
         cursor = cell.createTextCursor()
-        cell.insertString(cursor, content, False)
+        cursor.collapseToEnd()
+        cell.insertString(cursor, content, True)
+        return cursor
 
     def _createTagReport(self, tag):
         print("building report for tag:", tag.name, '|', tag.path)
@@ -383,8 +385,14 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         for i, node in enumerate(dataNodes):
             try:
                 self._writeToTableCell(table, 0, i+1, node.data.ident)
-                self._writeToTableCell(table, 1, i+1, node.pathString)
                 self._writeToTableCell(table, 2, i+1, node.data.text)
+
+                for part in reversed(node.path):
+                    # FIXME colors are not applied, it's either black or white
+                    cursor = self._writeToTableCell(table, 1, i+1, part)
+                    # cursor.setPropertyValue('CharColor', self._lo_color((0, 0, 0)))
+                    cursor = self._writeToTableCell(table, 1, i+1, '#')
+                    # cursor.setPropertyValue('CharColor', self._lo_color((180, 180, 180)))
             except:
                 print("failed to populate cell:", get_traceback())
 
