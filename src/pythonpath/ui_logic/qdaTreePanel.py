@@ -395,37 +395,10 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         return report
 
     def _createTagFiltered(self, tag):
-        try:
-            # TODO: Tables and other non-text objects at the very beginning of the
-            # document will not be copied. Also, getting the view cursor fails in
-            # these situations, thus the selection cannot be cleared.
-            self.document.lockControllers()
+        report = self._openDocumentAsNew(self.document)
 
-            try:
-                origPosition = self.document.getText().createTextCursorByRange(
-                    self.document.CurrentController.getViewCursor())
-            except:
-                origPosition = None
-
-            selectionCursor = self.document.getText().createTextCursor()
-            selectionCursor.gotoStart(False)
-            selectionCursor.gotoEnd(True)
-            self.document.CurrentController.select(selectionCursor)
-            selectedContent = self.document.CurrentController.getTransferable()
-
-            if origPosition:
-                self.document.CurrentController.select(origPosition)
-            self.document.unlockControllers()
-
-            report = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
-            outputCursor = report.getText().createTextCursor()
-            outputCursor.gotoStart(False)
-            report.CurrentController.select(outputCursor)
-            report.CurrentController.insertTransferable(selectedContent)
-            report.CurrentController.getViewCursor().gotoStart(False)
-        except:
-            print("error: failed to export tag:", get_traceback())
-            self.document.unlockControllers()
+        if report is None:
+            print("error: failed to create new document")
             return
 
         findTagsRe = re.compile(r'#\S+')
@@ -442,6 +415,14 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             matchedTags = [x for x in allTags if x.startswith(tagPath) and (x[offset:] == '' or x[offset:][0] == '#')]
 
             if not matchedTags:
+                # NOTE This removes all regular comments without tags as well.
+                # For the time being, this is considered a feature.
+                # TODO Do not remove regular comments in comment threads connected
+                # to comments that are being kept.
+                # Problem: I have found no way to either get a list of text fields
+                # at a certain position or to compare anchor/cursor positions.
+                # "Replies" to comments are anchored at the same position as the
+                # "parent" comment.
                 report.getText().removeTextContent(field)
 
         return report
