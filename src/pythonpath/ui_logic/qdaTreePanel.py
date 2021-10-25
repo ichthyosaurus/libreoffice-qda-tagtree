@@ -551,6 +551,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             print("warning: requested context menu on unknown node", node)
             return
 
+        if kind == 'rootNode' and len(self._abstractTree.items()) == 0:
+            return  # there are no nodes, no need for a context menu
+
         self._createContextMenu(kind)
         if not self._contextMenu:
             return
