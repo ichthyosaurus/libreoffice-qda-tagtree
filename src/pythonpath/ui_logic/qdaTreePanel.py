@@ -453,18 +453,13 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         # - https://docs.python.org/3/library/colorsys.html
         # - https://github.com/hsluv/hsluv-python
 
-        def lo_color(rgb):
-            return min(int(rgb[0]*255), 255) + \
-                (min(int(rgb[1]*255), 255) << 8) + \
-                    (min(int(rgb[2]*255), 255) << 16)
-
         dropColors = 1  # the first few colors are ugly
         count = len(collectedFields) + dropColors
         hsv_tuples = [(x*1.0/count, 0.5, 1.0) for x in range(count)]     # create equally spread HSV values
         rgb_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples)  # convert them to RGB
         hpluv_tuples = [hsluv.rgb_to_hpluv(x) for x in rgb_tuples]       # convert RGB to HPLUV (pastel, human-adapted intensity)
         rgb_tuples = [hsluv.hpluv_to_rgb(x) for x in hpluv_tuples]       # convert HPLUV back to RGB
-        colors = [lo_color(x) for x in rgb_tuples]  # convert RGB tuples to LibreOffice colors
+        colors = [self._lo_color(x) for x in rgb_tuples]  # convert RGB tuples to LibreOffice colors
         colors = colors[dropColors:]  # drop first few colors
 
         colorById = {}
@@ -525,6 +520,11 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         si = sm.createInstanceWithContext("com.sun.star.awt.Toolkit", self.LocalContext)
         mBox = si.createMessageBox(self.Toolkit, MsgType, MsgButtons, MsgTitle, MsgText)
         return mBox.execute()
+
+    def _lo_color(self, rgb_tuple):
+            return min(int(rgb_tuple[0]*255), 255) + \
+                (min(int(rgb_tuple[1]*255), 255) << 8) + \
+                    (min(int(rgb_tuple[2]*255), 255) << 16)
 
     def _printObjectProperties(self, obj, title=''):
         print("OBJECT PROPERTIES:", title)
