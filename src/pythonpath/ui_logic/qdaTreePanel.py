@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import tempfile
+import colorsys
 from collections import defaultdict
 
 from com.sun.star.awt.MessageBoxButtons import BUTTONS_OK, BUTTONS_OK_CANCEL, BUTTONS_YES_NO, BUTTONS_YES_NO_CANCEL, BUTTONS_RETRY_CANCEL, BUTTONS_ABORT_IGNORE_RETRY
@@ -28,11 +29,13 @@ from com.sun.star.awt import Rectangle
 from com.sun.star.awt.tree import XTreeEditListener
 from com.sun.star.awt.MouseButton import LEFT as MB_LEFT
 from com.sun.star.awt.MouseButton import RIGHT as MB_RIGHT
+from com.sun.star.awt.FontWeight import BOLD as FW_BOLD
 
 from com.sun.star.view import XSelectionChangeListener
 from com.sun.star.view import XSelectionSupplier
 from com.sun.star.view.SelectionType import SINGLE as SELECTION_SINGLE
 
+from hsluv import hsluv
 from ui.qdaTreePanel_UI import qdaTreePanel_UI
 
 
@@ -402,7 +405,6 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             return
 
         findTagsRe = re.compile(r'#\S+')
-        matchTagRe = re.compile(r'')
 
         for field in report.getTextFields():
             if not field.supportsService("com.sun.star.text.TextField.Annotation"):
@@ -429,15 +431,55 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
     def _createTagExport(self, tag):
         report = self._createTagFiltered(tag)
+        findTagsRe = re.compile(r'#\S+')  # TODO store common regexes as class properties
 
-        # TODO: root export
-        #   - new document
-        #   - copy all contents
-        #   - remove all annotations
+        # collect tagged comments
+        # NOTE Currently, all non-tag comments are removed in _createTagFiltered.
+        collectedFields = [x for x in report.getTextFields() if \
+            x.supportsService("com.sun.star.text.TextField.Annotation") and \
+                findTagsRe.search(x.Content)]
+
+        # prepare color palette
+        # We create enough colors that all fields could get
+        # a unique color to make sure each unique combination of tags gets its
+        # own color.
+        #
+        # References:
+        # - https://seaborn.pydata.org/tutorial/color_palettes.html#using-circular-color-systems
+        # - https://www.hsluv.org/
+        # - https://stackoverflow.com/a/876872
+        # - https://docs.python.org/3/library/colorsys.html
+        # - https://github.com/hsluv/hsluv-python
+
+        # TODO first color is too dark and brownish
+        count = len(collectedFields)
+        hsv_tuples = [(x*1.0/count, 0.5, 0.9) for x in range(count)]     # create equally spread HSV values
+        rgb_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples)  # convert them to RGB
+        hpluv_tuples = [hsluv.rgb_to_hpluv(x) for x in rgb_tuples]       # convert RGB to HPLUV (pastel, human-adapted intensity)
+        rgb_tuples = [hsluv.hpluv_to_rgb(x) for x in hpluv_tuples]       # convert HPLUV back to RGB
+        colors = [int(x[2]*255)+(int(x[1]*255)<<8)+(int(x[2]*255)<<16) for x in rgb_tuples]  # convert RGB tuples to LibreOffice colors
+
+        # replace comments with "baked" color highlights
+        # TODO Make sure all highlights are always visible.
+        for i, field in enumerate(collectedFields):
+            cursor = report.getText().createTextCursorByRange(field.getAnchor())
+            cursor.collapseToStart()
+
+            # TODO Insert "[ID]" or "[ID,ID,ID...]"
+            report.getText().insertString(cursor, "[??]", True)
+            cursor.setPropertyValue('CharWeight', FW_BOLD)
+            cursor.setPropertyValue('CharBackColor', colors[i])
+
+            cursor = report.getText().createTextCursorByRange(field.getAnchor())
+            cursor.setPropertyValue('CharBackColor', colors[i])
+
+            report.getText().removeTextContent(field)
+
+        # TODO:
+        #   - get new document with filtered annotations
         #   - highlight text with different colors, insert tag IDs
+        #   - remove all annotations
         #   - -> "<[1] lorem> ipsum dolor <[2] sit <[1,3] amet>, consectetuer> adipiscing elit."
-
-        print("not yet finished...")
 
     # --------- helpers ---------------------
 
