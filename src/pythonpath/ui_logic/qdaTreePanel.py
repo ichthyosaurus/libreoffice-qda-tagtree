@@ -122,6 +122,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     '''
     Class documentation...
     '''
+    FIND_TAGS_RE = re.compile(r'#\S+')
+    AUTHOR_TAG_IDS_RE = re.compile(r' {([0-9]+)(\+[0-9]+)*}$')
+
     def __init__(self, panelWin):
         qdaTreePanel_UI.__init__(self, panelWin)
 
@@ -207,21 +210,20 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         document = self.document
 
-        # This regex needs to match for a comment to be included in the returned list.
-        findTagsRe = re.compile(r'#\S+')
-        authorRe = re.compile(r' {([0-9]+)(\+[0-9]+)*}$')
-
         textFields = document.getTextFields()
         matchedComments = []
+        count = -1  # will be reset if the loop runs
 
         for count, currentField in enumerate(textFields):
             if not currentField.supportsService("com.sun.star.text.TextField.Annotation"):
                 continue  # field is not a comment
 
-            if not findTagsRe.search(currentField.Content.strip()):
+            if not self.FIND_TAGS_RE.search(currentField.Content.strip()):
                 continue  # field contains no tags
 
-            allTags = sorted([str(x).lower() for x in findTagsRe.findall(currentField.Content.strip())])  # e.g. ['#tag1#nested1#nested2', '#tag2']
+            # collect all fields that match a regex
+            # result: e.g. ['#tag1#nested1#nested2', '#tag2']
+            allTags = sorted([str(x).lower() for x in self.FIND_TAGS_RE.findall(currentField.Content.strip())])
 
             for tag in allTags:
                 if tag not in self._tagIdents:
@@ -232,9 +234,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             markedText = currentField.getAnchor().getString()
             taggedAuthor = ' {'+("+".join([str(self._tagIdents[x]) for x in allTags]))+'}'
 
-            if currentAuthor := authorRe.search(currentField.Author):
+            if currentAuthor := self.AUTHOR_TAG_IDS_RE.search(currentField.Author):
                 if currentAuthor.group(0) != taggedAuthor:
-                    currentField.Author = authorRe.sub(taggedAuthor, currentField.Author)
+                    currentField.Author = self.AUTHOR_TAG_IDS_RE.sub(taggedAuthor, currentField.Author)
             else:
                 currentField.Author += taggedAuthor
 
@@ -245,8 +247,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                 textField=currentField,
                 ))
 
-            print("collected:", count, markedText)
-
+        print(f"collected {count+1} tagged comments")
         return matchedComments
 
     def _constructTree(self, commentsList):
@@ -404,8 +405,6 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             print("error: failed to create new document")
             return
 
-        findTagsRe = re.compile(r'#\S+')
-
         for field in report.getTextFields():
             if not field.supportsService("com.sun.star.text.TextField.Annotation"):
                 continue  # field is not a comment
@@ -413,7 +412,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             tagPath = tag.path
             offset = len(tag.path)
 
-            allTags = sorted([str(x).lower() for x in findTagsRe.findall(field.Content.strip())])  # e.g. ['#tag1#nested1#nested2', '#tag2']
+            allTags = sorted([str(x).lower() for x in self.FIND_TAGS_RE.findall(field.Content.strip())])  # e.g. ['#tag1#nested1#nested2', '#tag2']
             matchedTags = [x for x in allTags if x.startswith(tagPath) and (x[offset:] == '' or x[offset:][0] == '#')]
 
             if not matchedTags:
@@ -431,13 +430,12 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
     def _createTagExport(self, tag):
         report = self._createTagFiltered(tag)
-        findTagsRe = re.compile(r'#\S+')  # TODO store common regexes as class properties
 
         # collect tagged comments
         # NOTE Currently, all non-tag comments are removed in _createTagFiltered.
         collectedFields = [x for x in report.getTextFields() if \
             x.supportsService("com.sun.star.text.TextField.Annotation") and \
-                findTagsRe.search(x.Content)]
+                self.FIND_TAGS_RE.search(x.Content)]
 
         # prepare color palette
         # We create enough colors that all fields could get
