@@ -384,7 +384,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         for i, node in enumerate(dataNodes):
             try:
-                self._writeToTableCell(table, 0, i+1, node.data.ident)
+                self._writeToTableCell(table, 0, i+1, self._tagIdents[node.pathString])
                 self._writeToTableCell(table, 2, i+1, node.data.text)
 
                 for part in reversed(node.path):

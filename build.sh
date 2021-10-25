@@ -6,6 +6,7 @@ zip -r qda.zip * -x build.sh _config.yml config.ini qda.oxt \
     TODO testdoc.* \
     src/pythonpath/hsluv/{MANIFEST.in,README.md,setup.cfg,setup.py} \
     src/pythonpath/hsluv/tests/* src/pythonpath/hsluv/tests \
+    exclude/* exclude \
     '.*' '*/.*' '*~' '*/*~'
 mv qda.zip qda.oxt
 
