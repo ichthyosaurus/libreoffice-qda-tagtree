@@ -138,6 +138,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self._contextMenu = None
         self._contextMenuContainer = {}
         self._contextMenuItems = {}
+        self._abstractTree = None
 
         # document pointers
         self.ctx = uno.getComponentContext()
@@ -175,8 +176,8 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         self.document = self.desktop.getCurrentComponent()
 
         treeControl = self.DialogContainer.getControl('TreeControl1')
-        commentslist = self._collectTaggedComments()
-        abstractTree = self._constructTree(commentslist)
+        commentsList = self._collectTaggedComments()
+        self._abstractTree = self._constructTree(commentsList)
         treemodel = self.ServiceManager.createInstance("com.sun.star.awt.tree.MutableTreeDataModel")
         rootnode = treemodel.createNode("QDA Tags", True)
         treemodel.setRoot(rootnode)
@@ -187,9 +188,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
                 tree[key] = tree.pop(key)  # hackish way to sort our custom dict in-place
             for i in tree.items():
                 sortTreeRecursive(i[1])
-        sortTreeRecursive(abstractTree)  # TODO make sorting optional
+        sortTreeRecursive(self._abstractTree)  # TODO make sorting optional
 
-        self._convertAbstractToUiTree(abstractTree, rootnode, treemodel)
+        self._convertAbstractToUiTree(self._abstractTree, rootnode, treemodel)
         self.TreeControl1.DataModel = treemodel
         self._expandAllNodesGuiTree(treeControl.Model.DataModel.Root, treeControl)
 
