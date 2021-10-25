@@ -676,6 +676,10 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
     # https://www.openoffice.org/api/docs/common/ref/com/sun/star/awt/XMouseListener.html
     def mousePressed(self, ev):
+        if ev.Buttons == MB_RIGHT:
+            print("right click detected, updating tree...")
+            self.updateTree()
+
         return False
 
     # https://www.openoffice.org/api/docs/common/ref/com/sun/star/awt/XMouseListener.html
