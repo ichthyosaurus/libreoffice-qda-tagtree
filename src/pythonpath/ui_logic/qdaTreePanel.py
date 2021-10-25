@@ -124,7 +124,8 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
     Class documentation...
     '''
     FIND_TAGS_RE = re.compile(r'#\S+')
-    AUTHOR_TAG_IDS_RE = re.compile(r' {([0-9]+)(\+[0-9]+)*}$')
+    AUTHOR_TAG_IDS_RE = re.compile(r' {(([0-9]+)(\+([0-9]+))*)}$')
+    SINGLE_TAG_ID = re.compile(r'([0-9]+)')
 
     def __init__(self, panelWin):
         qdaTreePanel_UI.__init__(self, panelWin)
@@ -465,6 +466,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         colors = [lo_color(x) for x in rgb_tuples]  # convert RGB tuples to LibreOffice colors
         colors = colors[dropColors:]  # drop first few colors
 
+        colorById = {}
+        last_color = -1
+
         # Sometimes nested highlights are overwritten by each other. There is no
         # easy fix for this problem. (I didn't figure out the hard way...) We
         # simply enclose tagged contents in special parentheses and call it a day.
@@ -477,21 +481,30 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         # replace comments with "baked" color highlights
         for i, field in enumerate(collectedFields):
+            try:
+                tagIdsString = self.AUTHOR_TAG_IDS_RE.search(field.Author).group(1)
+                tagIds = self.SINGLE_TAG_ID.findall(tagIdsString)
+            except:
+                print("error: failed to extract tag IDs from author field\n", get_traceback())
+                continue
+
+            if tagIdsString not in colorById:
+                colorById[tagIdsString] = colors[last_color+1]
+                last_color += 1
+
             cursor = report.getText().createTextCursorByRange(field.getAnchor())
             cursor.collapseToStart()
-
-            # TODO Insert "[ID]" or "[ID,ID,ID...]"
-            report.getText().insertString(cursor, parenLeft+"[??]", True)
+            report.getText().insertString(cursor, f'{parenLeft}{",".join(tagIds)} ', True)
             cursor.setPropertyValue('CharWeight', FW_BOLD)
-            cursor.setPropertyValue('CharBackColor', colors[i])
+            cursor.setPropertyValue('CharBackColor', colorById[tagIdsString])
 
             cursor = report.getText().createTextCursorByRange(field.getAnchor())
-            cursor.setPropertyValue('CharBackColor', colors[i])
+            cursor.setPropertyValue('CharBackColor', colorById[tagIdsString])
 
             cursor.collapseToEnd()
             report.getText().insertString(cursor, parenRight, True)
             cursor.setPropertyValue('CharWeight', FW_BOLD)
-            cursor.setPropertyValue('CharBackColor', colors[i])
+            cursor.setPropertyValue('CharBackColor', colorById[tagIdsString])
 
             report.getText().removeTextContent(field)
 
