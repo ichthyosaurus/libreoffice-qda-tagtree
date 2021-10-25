@@ -601,6 +601,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             self._contextMenu = self._contextMenuContainer[kind]
             return
 
+        print("building context menu...")
         smgr = self.ctx.getServiceManager()
         popup = smgr.createInstanceWithContext("com.sun.star.awt.PopupMenu", self.ctx)
 
@@ -609,7 +610,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             return
 
         for i, item in enumerate(self._contextMenuItems[kind]):
-            print(f"adding: {i+1} / {item} / {i}")
+            print(f"- adding menu item #{i+1}: {item}")
             popup.insertItem(i+1, item, 0, i+1)
 
         self._contextMenuContainer[kind] = popup
