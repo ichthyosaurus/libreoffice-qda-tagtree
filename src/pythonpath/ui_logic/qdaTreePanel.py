@@ -30,6 +30,7 @@ from com.sun.star.awt.tree import XTreeEditListener
 from com.sun.star.awt.MouseButton import LEFT as MB_LEFT
 from com.sun.star.awt.MouseButton import RIGHT as MB_RIGHT
 from com.sun.star.awt.FontWeight import BOLD as FW_BOLD
+from com.sun.star.awt.FontWeight import BLACK as FW_BLACK
 
 from com.sun.star.view import XSelectionChangeListener
 from com.sun.star.view import XSelectionSupplier
@@ -458,18 +459,32 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         rgb_tuples = [hsluv.hpluv_to_rgb(x) for x in hpluv_tuples]       # convert HPLUV back to RGB
         colors = [int(x[2]*255)+(int(x[1]*255)<<8)+(int(x[2]*255)<<16) for x in rgb_tuples]  # convert RGB tuples to LibreOffice colors
 
+        # Sometimes nested highlights are overwritten by each other. There is no
+        # easy fix for this problem. (I didn't figure out the hard way...) We
+        # simply enclose tagged contents in special parentheses and call it a day.
+        # Kinds of parentheses:
+        #   - good: ⎛⎠    or ⎝⎞⎜⎟
+        #   - huge performance cost: ❪❫⸨⸩⦅⦆
+        #   - ugly or bad visibility: ()（）﴾﴿
+        parenLeft = '⎛'
+        parenRight = '⎠'
+
         # replace comments with "baked" color highlights
-        # TODO Make sure all highlights are always visible.
         for i, field in enumerate(collectedFields):
             cursor = report.getText().createTextCursorByRange(field.getAnchor())
             cursor.collapseToStart()
 
             # TODO Insert "[ID]" or "[ID,ID,ID...]"
-            report.getText().insertString(cursor, "[??]", True)
+            report.getText().insertString(cursor, parenLeft+"[??]", True)
             cursor.setPropertyValue('CharWeight', FW_BOLD)
             cursor.setPropertyValue('CharBackColor', colors[i])
 
             cursor = report.getText().createTextCursorByRange(field.getAnchor())
+            cursor.setPropertyValue('CharBackColor', colors[i])
+
+            cursor.collapseToEnd()
+            report.getText().insertString(cursor, parenRight, True)
+            cursor.setPropertyValue('CharWeight', FW_BOLD)
             cursor.setPropertyValue('CharBackColor', colors[i])
 
             report.getText().removeTextContent(field)
