@@ -451,13 +451,19 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         # - https://docs.python.org/3/library/colorsys.html
         # - https://github.com/hsluv/hsluv-python
 
-        # TODO first color is too dark and brownish
-        count = len(collectedFields)
-        hsv_tuples = [(x*1.0/count, 0.5, 0.9) for x in range(count)]     # create equally spread HSV values
+        def lo_color(rgb):
+            return min(int(rgb[0]*255), 255) + \
+                (min(int(rgb[1]*255), 255) << 8) + \
+                    (min(int(rgb[2]*255), 255) << 16)
+
+        dropColors = 1  # the first few colors are ugly
+        count = len(collectedFields) + dropColors
+        hsv_tuples = [(x*1.0/count, 0.5, 1.0) for x in range(count)]     # create equally spread HSV values
         rgb_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), hsv_tuples)  # convert them to RGB
         hpluv_tuples = [hsluv.rgb_to_hpluv(x) for x in rgb_tuples]       # convert RGB to HPLUV (pastel, human-adapted intensity)
         rgb_tuples = [hsluv.hpluv_to_rgb(x) for x in hpluv_tuples]       # convert HPLUV back to RGB
-        colors = [int(x[2]*255)+(int(x[1]*255)<<8)+(int(x[2]*255)<<16) for x in rgb_tuples]  # convert RGB tuples to LibreOffice colors
+        colors = [lo_color(x) for x in rgb_tuples]  # convert RGB tuples to LibreOffice colors
+        colors = colors[dropColors:]  # drop first few colors
 
         # Sometimes nested highlights are overwritten by each other. There is no
         # easy fix for this problem. (I didn't figure out the hard way...) We
