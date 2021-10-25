@@ -8,8 +8,10 @@
 # =============================================================================
 
 import uno
+import os
 import re
 import sys
+import tempfile
 from collections import defaultdict
 
 from com.sun.star.awt.MessageBoxButtons import BUTTONS_OK, BUTTONS_OK_CANCEL, BUTTONS_YES_NO, BUTTONS_YES_NO_CANCEL, BUTTONS_RETRY_CANCEL, BUTTONS_ABORT_IGNORE_RETRY
@@ -463,6 +465,51 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         si = sm.createInstanceWithContext("com.sun.star.awt.Toolkit", self.LocalContext)
         mBox = si.createMessageBox(self.Toolkit, MsgType, MsgButtons, MsgTitle, MsgText)
         return mBox.execute()
+
+    def _printObjectProperties(self, obj, title=''):
+        print("OBJECT PROPERTIES:", title)
+
+        if hasattr(obj, 'getPropertySetInfo'):
+            print('\n'.join([f'{x.Name}: {x.Type}' for x in obj.getPropertySetInfo().getProperties()]))
+        else:
+            print('-> object has no getPropertySetInfo() method')
+
+    def _openDocumentAsNew(self, document):
+        '''
+        DOES T^emporarily save a document to a temporary location, then open it as a
+             new unnamed document and remove the temporary file.
+        GETS an opened document
+        RETURNS the new document or None
+        '''
+        try:
+            tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix='.odt')
+            tmpfile.close()
+            tmpfileUrl = 'file://'+tmpfile.name
+        except:
+            print("error: failed to create temporary file", get_traceback())
+            return None
+
+        try:
+            document.lockControllers()
+            document.storeToURL(tmpfileUrl, ())
+            document.unlockControllers()
+        except:
+            print("error: failed to save document to temporary location", get_traceback())
+            os.remove(tmpfile.name)
+            return None
+
+        try:
+            loadProperties = [PropertyValue("AsTemplate", 0, True, DIRECT_VALUE)]
+            newDocument = self.desktop.loadComponentFromURL(tmpfileUrl, "_blank", 0, tuple(loadProperties))
+            newDocument.CurrentController.getViewCursor().gotoStart(False)
+            os.remove(tmpfile.name)
+        except:
+            print("error: failed to load and remove temporary file")
+            print("-> tempfile:", tempfile.name)
+            print("-> traceback:\n", get_traceback())
+            return None
+
+        return newDocument
 
     def _showContextMenu(self, node):
         self._contextMenuItems = {  # inefficient but easier to change
