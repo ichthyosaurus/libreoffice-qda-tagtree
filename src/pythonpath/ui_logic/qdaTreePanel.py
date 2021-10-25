@@ -401,7 +401,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         return report
 
-    def _createTagFiltered(self, tag):
+    def _createTagFiltered(self, tag, keepNonTag=False):
         report = self._openDocumentAsNew(self.document)
 
         if report is None:
@@ -419,8 +419,9 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             matchedTags = [x for x in allTags if x.startswith(tagPath) and (x[offset:] == '' or x[offset:][0] == '#')]
 
             if not matchedTags:
-                # NOTE This removes all regular comments without tags as well.
-                # For the time being, this is considered a feature.
+                if keepNonTag and not allTags:
+                    continue
+
                 # TODO Do not remove regular comments in comment threads connected
                 # to comments that are being kept.
                 # Problem: I have found no way to either get a list of text fields
@@ -432,7 +433,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         return report
 
     def _createTagExport(self, tag):
-        report = self._createTagFiltered(tag)
+        report = self._createTagFiltered(tag, keepNonTag=True)
 
         # collect tagged comments
         # NOTE Currently, all non-tag comments are removed in _createTagFiltered.
@@ -506,13 +507,16 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
             cursor.setPropertyValue('CharWeight', FW_BOLD)
             cursor.setPropertyValue('CharBackColor', colorById[tagIdsString])
 
-            report.getText().removeTextContent(field)
+            customContent = self.FIND_TAGS_RE.sub('', field.Content.strip()).strip()
 
-        # TODO:
-        #   - get new document with filtered annotations
-        #   - highlight text with different colors, insert tag IDs
-        #   - remove all annotations
-        #   - -> "<[1] lorem> ipsum dolor <[2] sit <[1,3] amet>, consectetuer> adipiscing elit."
+            if customContent:
+                # TODO create a new annotation that is anchored at the end of the
+                # tagged content, instead of modifying the original one which spans
+                # the whole section
+                field.Content = customContent
+                field.Author = self.AUTHOR_TAG_IDS_RE.sub('', field.Author).strip()
+            else:
+                report.getText().removeTextContent(field)
 
     # --------- helpers ---------------------
 
