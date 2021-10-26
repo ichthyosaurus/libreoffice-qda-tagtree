@@ -726,10 +726,16 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
     # https://www.openoffice.org/api/docs/common/ref/com/sun/star/awt/XMouseListener.html
     def mousePressed(self, ev):
-        if ev.Buttons == MB_RIGHT:
-            print("right click detected, updating tree...")
-            self.updateTree()
-
+        # TODO Find a way to make sure the tree is always up-to-date when accessing
+        #      the context menu. Refreshing it here is not viable because it makes
+        #      it impossible to access the menu if the tree view has been scrolled.
+        #
+        #      Maybe simply update the tree when an invalid node is accessed?
+        #      How to detect if a node is invalid?
+        #
+        # if ev.Buttons == MB_RIGHT:
+        #     print("right click detected, updating tree...")
+        #     self.updateTree()
         return False
 
     # https://www.openoffice.org/api/docs/common/ref/com/sun/star/awt/XMouseListener.html
