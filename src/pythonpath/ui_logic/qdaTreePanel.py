@@ -337,7 +337,7 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
 
         if hasattr(abstractTree, 'children'):
             for child in abstractTree.children:
-                tempList.append(child)
+                tempList.append((child, abstractTree))  # tuple (child, parent)
 
         if not abstractTree:
             return tempList
@@ -382,17 +382,29 @@ class qdaTreePanel(qdaTreePanel_UI,XActionListener, XSelectionChangeListener, XT
         dataNodes = self._buildTagDataList(tag)
         table.getRows().insertByIndex(1, len(dataNodes)-1)  # -1 because there is one already
 
-        for i, node in enumerate(dataNodes):
+        lastTag = ''  # TODO print tag only once
+
+        for i, tup in enumerate(dataNodes):
+            node, parent = tup
+
             try:
+                self._writeToTableCell(table, 3, i+1, node.data.text)
+
+                if node.pathString == lastTag:
+                    cursor = self._writeToTableCell(table, 2, i+1, '— ·· —')
+                    continue
+
                 self._writeToTableCell(table, 0, i+1, self._tagIdents[node.pathString])
-                self._writeToTableCell(table, 2, i+1, node.data.text)
+                self._writeToTableCell(table, 1, i+1, len(parent.children))
 
                 for part in reversed(node.path):
                     # FIXME colors are not applied, it's either black or white
-                    cursor = self._writeToTableCell(table, 1, i+1, part)
+                    cursor = self._writeToTableCell(table, 2, i+1, part)
                     # cursor.setPropertyValue('CharColor', self._lo_color((0, 0, 0)))
-                    cursor = self._writeToTableCell(table, 1, i+1, '#')
+                    cursor = self._writeToTableCell(table, 2, i+1, '#')
                     # cursor.setPropertyValue('CharColor', self._lo_color((180, 180, 180)))
+
+                lastTag = node.pathString
             except:
                 print("failed to populate cell:", get_traceback())
 
