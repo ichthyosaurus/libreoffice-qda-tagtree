@@ -32,6 +32,10 @@ Files: qda-tagtree/templates/tag_report.odt
 Copyright: 2021 Mirian Margiani
 License: GPL-3.0-or-later
 
+Files: dist/screenshot-1.png
+Copyright: 2017 Jan Dittrich
+License: GPL-3.0-or-later
+
 
 # Templates:
 
