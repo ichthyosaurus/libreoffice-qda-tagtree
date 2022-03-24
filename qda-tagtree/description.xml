@@ -29,7 +29,7 @@ Tip: When edited open file in browser to check for errors.
     -->
     <identifier value="tagtree.qdaaddon.de.fordes.qdatreehelper"/>
 
-    <version value="0.2.3"/>
+    <version value="0.3.0"/>
 
     <platform value="all"/>
 
