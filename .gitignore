@@ -1,2 +1,8 @@
+
+# Local development files
+local/
+
+# Generated files
 .directory
 .~lock.*
+build*/
