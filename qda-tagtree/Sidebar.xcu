@@ -1,4 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
+
+<!--
+This file is part of libreoffice-qda-tagtree.
+SPDX-FileCopyrightText: 2022 Mirian Margiani
+SPDX-FileCopyrightText: 2017 Jan Dittrich
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 <oor:component-data
 	oor:name="Sidebar"
     oor:package="org.openoffice.Office.UI"

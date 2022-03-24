@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python
+#
+# This file is part of libreoffice-qda-tagtree.
+# SPDX-FileCopyrightText: 2021-2022 Mirian Margiani
+# SPDX-FileCopyrightText: 2017 Jan Dittrich
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 # =============================================================================
 #

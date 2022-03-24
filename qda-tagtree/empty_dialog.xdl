@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE dlg:window PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "dialog.dtd">
 
+<!--
+This file is part of libreoffice-qda-tagtree.
+SPDX-FileCopyrightText: 2022 Mirian Margiani
+SPDX-FileCopyrightText: 2017 Jan Dittrich
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 <dlg:window xmlns:dlg="http://openoffice.org/2000/dialog" xmlns:script="http://openoffice.org/2000/script"
 		dlg:id="Dialog_Sidebar" dlg:left="10" dlg:top="10" dlg:width="250" dlg:height="150"
 		dlg:closeable="true" dlg:moveable="true" dlg:title='sidebar_dialog' dlg:withmenubar="true" dlg:withtitlebar="false">

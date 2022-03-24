@@ -1,6 +1,7 @@
 QDA Tag Tree, a Libre Office Extension helping you to analyse transcripts
 
-Copyright (C) 2017,  Jan Dittrich
+Copyright (C) 2017  Jan Dittrich
+              2021-2022  Mirian Margiani
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

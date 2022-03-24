@@ -1,4 +1,7 @@
 #!/bin/bash
+# This file is part of libreoffice-qda-tagtree.
+# SPDX-FileCopyrightText: 2021-2022 Mirian Margiani
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 echo "packaging..."
 rm qda.oxt

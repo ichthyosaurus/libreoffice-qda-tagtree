@@ -1,3 +1,10 @@
+<!--
+This file is part of libreoffice-qda-tagtree.
+SPDX-FileCopyrightText: 2021-2022 Mirian Margiani
+SPDX-FileCopyrightText: 2017 Jan Dittrich
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 A libre office addon that finds comments that have #hashtags in them. It shows all these comments in a tree control in the sidebar (after the user pressed the update button). 
 
 ![Screenshot of the extension; shows Libreoffice comments and a tree view](http://i.imgur.com/7k9Meb6.png)
