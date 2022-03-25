@@ -11,7 +11,7 @@ A LibreOffice addon that finds comments that have `#hashtags` in them. It shows
 all these comments in a tree control in the sidebar (after the user pressed the
 update button).
 
-![Screenshot of the extension; shows LibreOffice comments and a tree view](dist/screenshot-1.png)
+![Screenshot of the extension; shows LibreOffice comments and a tree view](dist/screenshot-tagging-small.png)
 
 ## How to use
 
@@ -30,17 +30,38 @@ update button).
 The extension is in an early stage of development. It works fine but does not
 yet support code books and the user interface is still lacking.
 
+### Missing features
+
+- proper codebook that can be shared between documents
+- export to CSV or ODS
+- a way to merge changes back into the main document when editing a "filtered" document
+- renaming, merging, moving tags and annotations
+
 ## How to build
 
 To build the extension, simply run the `build.sh` script. It basically creates
 a `zip` file of the `qda-tagtree` directory and changes the file extension to
 `.oxt`.
 
+## Screenshots
+
+**Main tagging interface:**
+
+![Screenshot of the extension; shows LibreOffice comments and a tree view](dist/screenshot-tagging.png)
+
+**Merged, exported, or filtered tags:**
+
+![Screenshot of the extension; shows a document with merged and highlighted tags](dist/screenshot-export.png)
+
+**Report:**
+
+![Screenshot of the extension; shows a document with a table containing all tags and related text passages](dist/screenshot-report.png)
+
 ## License
 
 > QDA Tag Tree, a LibreOffice Extension helping you to analyse transcripts.
 >
-> Copyright (C) 2017  Jan Dittrich
+> Copyright (C) 2017  Jan Dittrich,
 >               2021-2022  Mirian Margiani
 >
 > This program is free software: you can redistribute it and/or modify
