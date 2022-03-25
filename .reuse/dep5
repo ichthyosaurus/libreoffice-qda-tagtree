@@ -3,10 +3,12 @@ Upstream-Name: QDA Tag Tree, tagtree.qdaaddon.de.fordes.qdatreehelper, and libre
 Upstream-Contact: Jan Dittrich <dittrich.c.jan@gmail.com>
 Source: https://github.com/jdittrich/Office-QDA-TagTree
 
-Files: testdoc.odt
+Files: example-*.odt
 Copyright: 2021-2022 Mirian Margiani
-License: GPL-3.0-or-later
-Comment: This test text document contains mostly "lorem ipsum" blindtext.
+License: CC-BY-SA-4.0
+Comment: These documents mostly contain text from Henry David Thoreau's
+    1854 book "Walden", which is in the public domain.
+    Each document's metadata contains license info as well.
 
 Files: qda-tagtree/description/*.txt
 Copyright: 2017 Jan Dittrich
@@ -19,7 +21,7 @@ Comment: Original sources are not available.
 
 Files: qda-tagtree/registration/license.txt
 Copyright: 2017 Jan Dittrich
-Copyright: 2022 Mirian Margiani
+           2022 Mirian Margiani
 License: GPL-3.0-or-later
 Comment: GPL license header for the whole project. Required by LibreOffice.
 
