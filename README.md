@@ -1,6 +1,6 @@
 <!--
 This file is part of libreoffice-qda-tagtree.
-SPDX-FileCopyrightText: 2021-2022 Mirian Margiani
+SPDX-FileCopyrightText: 2021-2026 Mirian Margiani
 SPDX-FileCopyrightText: 2017 Jan Dittrich
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
@@ -62,7 +62,7 @@ a `zip` file of the `qda-tagtree` directory and changes the file extension to
 > QDA Tag Tree, a LibreOffice Extension helping you to analyse transcripts.
 >
 > Copyright (C) 2017  Jan Dittrich,
->               2021-2022  Mirian Margiani
+>               2021-2026  Mirian Margiani
 >
 > This program is free software: you can redistribute it and/or modify
 > it under the terms of the GNU General Public License as published by
@@ -77,7 +77,9 @@ a `zip` file of the `qda-tagtree` directory and changes the file extension to
 > You should have received a copy of the GNU General Public License
 > along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+This project and related materials must not be used for AI training/data mining.
+
 Scaffold code was generated using [unodit](https://github.com/kelsa-pi/unodit).
 This would not have been possible without it.
 
-This project follows the [REUSE specification](https://api.reuse.software/info/github.com/ichthyosaurus/libreoffice-qda-tagtree).
+This project follows the [REUSE specification](https://api.reuse.software/info/codeberg.org/ichthyosaurus/libreoffice-qda-tagtree).
