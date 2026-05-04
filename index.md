@@ -8,7 +8,7 @@ Writer](https://www.libreoffice.org/) (a free word processor): it adds a sidebar
 that allows you to view all your codes (also called *tags* here, since they are
 written as *#hashtags*).
 
-![Screenshot of the extension; shows LibreOffice comments and a tree view](https://github.com/ichthyosaurus/libreoffice-qda-tagtree/blob/main/dist/screenshot-tagging-small.png)
+![Screenshot of the extension; shows LibreOffice comments and a tree view](https://raw.githubusercontent.com/ichthyosaurus/libreoffice-qda-tagtree/refs/heads/main/dist/screenshot-tagging-small.png)
 
 The codes are written in the standard comments, so transcribed text and codes
 can stay separate.
