@@ -34,7 +34,7 @@ Tip: When edited open file in browser to check for errors.
     <platform value="all"/>
 
     <publisher>
-        <name xlink:href="mailto:mixosaurus+qda@pm.me">ichthyosaurus</name>
+        <name xlink:href="https://codeberg.org/ichthyosaurus/libreoffice-qda-tagtree">ichthyosaurus</name>
     </publisher>
 
     <!--
