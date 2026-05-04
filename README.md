@@ -7,6 +7,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 # QDA Tag Tree for LibreOffice
 
+**This is a fork and continuation of [jdittrich's](https://github.com/jdittrich/Office-QDA-TagTree)**
+**currently unmaintained effort. I'll gladly merge the projects back together if there is interest.**
+
 A LibreOffice addon that finds comments that have `#hashtags` in them. It shows
 all these comments in a tree control in the sidebar (after the user pressed the
 update button).
