@@ -1,6 +1,6 @@
 #!/bin/bash
 # This file is part of libreoffice-qda-tagtree.
-# SPDX-FileCopyrightText: 2021-2022 Mirian Margiani
+# SPDX-FileCopyrightText: 2021-2026 Mirian Margiani
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
@@ -30,10 +30,10 @@ find "$cBUILD" -iname "*~" -delete
 find "$cBUILD" -iname ".*" -delete
 
 back="$(pwd)"
-cd "$cBUILD"
-zip -r qda-tagtree.zip *
+cd "$cBUILD" || exit 1
+zip -r qda-tagtree.zip -- ./*
 
-cd "$back"
+cd "$back" || exit 1
 mv "$cBUILD/qda-tagtree.zip" "$cBUILD_BASE/qda-tagtree.oxt"
 
 
