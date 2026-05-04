@@ -5,10 +5,24 @@ SPDX-FileCopyrightText: 2017 Jan Dittrich
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
+# This project moved to [Codeberg](https://codeberg.org/ichthyosaurus/libreoffice-qda-tagtree)
+
+> [!WARNING]
+> **Development of libreoffice-qda-tagtree has moved to
+> [Codeberg](https://codeberg.org/ichthyosaurus/libreoffice-qda-tagtree).
+> Please update your bookmarks and local clones to point to the new URL.**
+>
+>     git remote set-url origin https://codeberg.org/ichthyosaurus/libreoffice-qda-tagtree
+>     git fetch
+>     git branch -u origin/main main
+
+---
+
 # QDA Tag Tree for LibreOffice
 
-**This is a fork and continuation of [jdittrich's](https://github.com/jdittrich/Office-QDA-TagTree)**
-**currently unmaintained effort. I'll gladly merge the projects back together if there is interest.**
+> [!NOTE]
+> This is a fork and continuation of [jdittrich's](https://github.com/jdittrich/Office-QDA-TagTree)
+> currently unmaintained effort. I'll gladly merge the projects back together if there is interest.
 
 A LibreOffice addon that finds comments that have `#hashtags` in them. It shows
 all these comments in a tree control in the sidebar (after the user pressed the
