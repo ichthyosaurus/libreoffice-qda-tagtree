@@ -68,9 +68,8 @@ Tip: When edited open file in browser to check for errors.
     -->
 
     <display-name>
-        <name lang="en">qdacodehelper</name>
+        <name lang="en">QDA Tag Tree</name>
     </display-name>
-
 
     <icon>
         <default xlink:href="image/icon.png" />
